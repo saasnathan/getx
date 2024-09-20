@@ -105,8 +105,13 @@ class GetRouterOutlet extends RouterOutlet<GetDelegate, RouteDecoder> {
             return ret;
           },
           key: key,
-          emptyPage: (delegate) =>
-              delegate.matchRoute(initialRoute).route ?? delegate.notFoundRoute,
+          emptyPage: (delegate) => delegate.matchRoute(initialRoute).route ?? delegate.notFoundRoute,
+          // emptyWidget: (delegate){
+          //   WidgetsBinding.instance?.addPostFrameCallback((timeStamp) {
+          //     delegate.offNamed(initialRoute);
+          //   });
+          //   return const SizedBox.shrink();
+          // },
           navigatorKey: Get.nestedKey(anchorRoute)?.navigatorKey,
           delegate: delegate,
         );

@@ -661,12 +661,58 @@ class GetDelegate extends RouterDelegate<RouteDecoder>
   }
 
   Future<T?> _replaceNamed<T>(RouteDecoder activePage) async {
-    final index = _activePages.length > 1 ? _activePages.length - 1 : 0;
-    // final activePage = _configureRouterDecoder<T>(page, arguments);
-    _activePages[index] = activePage;
+    // Executa o middleware
+    var res = await runMiddleware(activePage);
+    if (res == null) return null;
+
+    // Verifica se a rota foi alterada pelo middleware
+    final preventDuplicateHandlingMode =
+        res.route?.preventDuplicateHandlingMode ??
+            PreventDuplicateHandlingMode.reorderRoutes;
+
+    final onStackPage = _activePages
+        .firstWhereOrNull((element) => element.route?.key == res.route?.key);
+
+    // Se a rota foi alterada e já existe na pilha
+    if (onStackPage != null) {
+      // Reordena as rotas para colocar a nova rota "por baixo" da atual
+      switch (preventDuplicateHandlingMode) {
+        case PreventDuplicateHandlingMode.reorderRoutes:
+          _activePages.remove(onStackPage);
+          // Verificar se há pelo menos um elemento para evitar índice -1
+          if (_activePages.isNotEmpty) {
+            _activePages.insert(_activePages.length - 1, res);
+          } else {
+            _activePages.add(res);
+          }
+          break;
+        case PreventDuplicateHandlingMode.recreate:
+          _activePages.remove(onStackPage);
+          // Verificar se há pelo menos um elemento para evitar índice -1
+          if (_activePages.isNotEmpty) {
+            _activePages.insert(_activePages.length - 1, res);
+          } else {
+            _activePages.add(res);
+          }
+          break;
+        default:
+          // Manter o comportamento padrão do middleware para outras opções
+          _activePages.remove(onStackPage);
+          _activePages.add(res);
+          break;
+      }
+    } else {
+      // Caso não tenha alterações ou duplicatas, atualiza a rota atual
+      final index = _activePages.length > 1 ? _activePages.length - 1 : 0;
+      if (_activePages.isNotEmpty) {
+        _activePages[index] = res;
+      } else {
+        _activePages.add(res);
+      }
+    }
 
     notifyListeners();
-    final result = await activePage.route?.completer?.future as Future<T?>?;
+    final result = await res.route?.completer?.future as Future<T?>?;
     return result;
   }
 
